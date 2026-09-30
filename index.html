@@ -83,7 +83,10 @@ canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair;b
 .pin b{position:absolute;inset:0;display:grid;place-items:center;font-size:26px;color:#fff;text-shadow:0 0 12px var(--heart)}
 @keyframes pulse{0%{transform:scale(.6);opacity:.9}100%{transform:scale(3);opacity:0}}
 #mapbox{height:460px;background:var(--road)}
-.mapboxgl-popup-content{background:var(--asphalt);color:var(--paint);border:2px solid var(--line);border-radius:14px;font-family:var(--body);padding:12px 16px}
+.mapboxgl-popup-content{background:var(--asphalt);color:var(--paint);border:2px solid var(--line);border-radius:14px;font-family:var(--body);padding:12px 44px 12px 16px}
+.mapboxgl-popup-close-button{top:8px;right:8px;width:28px;height:28px;padding:0;border-radius:50%;background:rgba(242,240,247,.16);color:#f2f0f7;font-size:22px;line-height:1;display:grid;place-items:center}
+.mapboxgl-popup-close-button:hover{background:var(--heart);color:#fff}
+.mapboxgl-popup-close-button:focus-visible{outline:2px solid var(--line);outline-offset:2px}
 .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip{border-top-color:var(--line)}
 @media(prefers-reduced-motion:reduce){.pin i{animation:none}}
 .mapcard{position:absolute;left:14px;bottom:34px;z-index:500;padding:.8rem 1.1rem;border-radius:16px;background:rgba(20,18,28,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(242,240,247,.25);text-align:left}
