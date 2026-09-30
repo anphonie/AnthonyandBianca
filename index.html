@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
 :root{--asphalt:#14121c;--road:#1f1b2b;--line:#ffd23f;--paint:#f2f0f7;--heart:#ff4d8d;--smoke:#b8a7ff;--muted:#a9a3bb;
 --head:'Bricolage Grotesque','Arial Black',system-ui,sans-serif;--body:'DM Sans',system-ui,-apple-system,sans-serif}
@@ -76,10 +77,16 @@ canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair;b
 .tip{margin-top:1rem;color:var(--muted);font-size:.95rem}
 /* map */
 .mapwrap{position:relative;border-radius:24px;overflow:hidden;border:4px solid var(--line);box-shadow:0 0 50px rgba(255,77,141,.2)}
-.tmap{display:block;width:100%;height:auto;background:radial-gradient(ellipse at 50% 45%,#2a2438,#14121c 75%);font-family:var(--body)}
-.tmap text{fill:#f2f0f7}.tmap .dim{fill:#a9a3bb}
 @media(max-width:600px){.mapcard{position:static!important;border-radius:0!important;border:0!important;border-top:1px solid rgba(242,240,247,.25)!important}}
-.mapcard{position:absolute;left:14px;bottom:30px;z-index:500;padding:.8rem 1.1rem;border-radius:16px;background:rgba(20,18,28,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(242,240,247,.25);text-align:left}
+.pin{position:relative;width:26px;height:26px}
+.pin i{position:absolute;inset:0;border-radius:50%;background:var(--heart);animation:pulse 2s infinite}
+.pin b{position:absolute;inset:0;display:grid;place-items:center;font-size:26px;color:#fff;text-shadow:0 0 12px var(--heart)}
+@keyframes pulse{0%{transform:scale(.6);opacity:.9}100%{transform:scale(3);opacity:0}}
+#mapbox{height:460px;background:var(--road)}
+.maplibregl-popup-content{background:var(--asphalt);color:var(--paint);border:2px solid var(--line);border-radius:14px;font-family:var(--body);padding:12px 16px}
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip{border-top-color:var(--line)}
+@media(prefers-reduced-motion:reduce){.pin i{animation:none}}
+.mapcard{position:absolute;left:14px;bottom:34px;z-index:500;padding:.8rem 1.1rem;border-radius:16px;background:rgba(20,18,28,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(242,240,247,.25);text-align:left}
 .mapcard b{display:block;font:800 1.15rem var(--head)}
 .mapcard small{color:var(--muted)}
 .mapcard a{display:inline-block;margin-top:.4rem;color:var(--line);font-weight:500;font-size:.95rem}
@@ -129,43 +136,41 @@ footer{padding:3rem 1.4rem calc(3rem + env(safe-area-inset-bottom,0px));text-ali
 
 <section id="map"><div class="wrap">
   <h2>Where we met</h2>
-  <p class="lead">Sydney Motorsport Park.</p>
+  <p class="lead">Sydney Motorsport Park, on the figure 8 track.</p>
   <div class="mapwrap">
-    <svg class="tmap" viewBox="0 0 800 440" role="img" aria-label="Stylised map of Sydney Motorsport Park with a heart pin on the corner where we met">
-      <defs>
-        <pattern id="gr" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#f2f0f7" stroke-opacity=".05"/></pattern>
-        <path id="trk" d="M140 300C100 220 130 120 240 100C330 85 360 150 430 150C500 150 520 80 610 90C700 100 720 200 660 260C610 310 520 280 470 320C420 360 330 350 290 310C250 270 190 340 140 300Z"/>
-      </defs>
-      <rect width="800" height="440" fill="url(#gr)"/>
-      <ellipse cx="400" cy="230" rx="330" ry="170" fill="#b8a7ff" fill-opacity=".05"/>
-      <ellipse cx="400" cy="230" rx="250" ry="120" fill="#b8a7ff" fill-opacity=".05"/>
-      <path d="M0 380C120 350 200 410 330 395C460 380 560 420 800 370" fill="none" stroke="#6f8cff" stroke-opacity=".35" stroke-width="6" stroke-linecap="round"/>
-      <use href="#trk" fill="none" stroke="#ffffff" stroke-width="38" stroke-dasharray="12 12"/>
-      <use href="#trk" fill="none" stroke="#ff4d8d" stroke-width="38" stroke-dasharray="12 12" stroke-dashoffset="12"/>
-      <use href="#trk" fill="none" stroke="#2b2540" stroke-width="30"/>
-      <use href="#trk" fill="none" stroke="#ffd23f" stroke-width="2" stroke-dasharray="10 10" stroke-opacity=".8"/>
-      <line x1="122" y1="300" x2="160" y2="300" stroke="#14121c" stroke-width="8"/>
-      <line x1="122" y1="300" x2="160" y2="300" stroke="#fff" stroke-width="8" stroke-dasharray="5 5"/>
-      <rect x="-9" y="-5" width="18" height="10" rx="3" fill="#ffd23f"><animateMotion dur="9s" repeatCount="indefinite" rotate="auto"><mpath href="#trk"/></animateMotion></rect>
-      <g transform="translate(430 150)">
-        <circle r="12" fill="#ff4d8d" opacity=".5"><animate attributeName="r" values="10;34" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0" dur="2s" repeatCount="indefinite"/></circle>
-        <text y="9" text-anchor="middle" font-size="28" style="fill:#ff4d8d">&#9829;</text>
-        <g transform="translate(0 -58)"><rect x="-145" y="-26" width="290" height="52" rx="14" fill="#14121c" stroke="#ffd23f" stroke-width="2"/>
-          <text y="-4" text-anchor="middle" font-size="15" font-weight="700">Where it all started</text>
-          <text y="16" text-anchor="middle" font-size="13" class="dim">The car went sideways. We kept going.</text></g>
-      </g>
-      <text x="22" y="34" font-size="13" class="dim">33.804&deg;S &nbsp;150.867&deg;E</text>
-      <text x="778" y="410" font-size="14" text-anchor="end" class="dim">Sydney CBD &rarr;</text>
-      <text x="778" y="428" font-size="12" text-anchor="end" class="dim">about 40 km east</text>
-      <g transform="translate(748 52)"><circle r="22" fill="none" stroke="#f2f0f7" stroke-opacity=".3"/><path d="M0-16L6 6 0 2-6 6Z" fill="#ff4d8d"/><text y="-26" text-anchor="middle" font-size="12" font-weight="700">N</text></g>
-    </svg>
-    <div class="mapcard"><b>Sydney Motorsport Park</b><small>Eastern Creek, NSW &middot; May 28, 2023</small><br><a href="https://www.openstreetmap.org/?mlat=-33.804468&mlon=150.867409#map=15/-33.804468/150.867409" target="_blank" rel="noopener">Open full map</a></div>
+    <div id="mapbox" role="region" aria-label="Map of the figure 8 track at Sydney Motorsport Park"></div>
+    <div class="mapcard"><b>Sydney Motorsport Park</b><small>The figure 8 track &middot; Eastern Creek, NSW &middot; May 28, 2023</small><br><a id="fullmap" href="https://www.openstreetmap.org/?mlat=-33.804468&mlon=150.867409#map=17/-33.804468/150.867409" target="_blank" rel="noopener">Open full map</a></div>
   </div>
 </div></section>
 
 <footer>Made by Anthony, for Bianca. &copy; 2026</footer>
 <div id="lb" role="dialog" aria-label="Photo viewer"><div><img alt=""><p></p></div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+/* map: OpenStreetMap data, drawn from MapTiler's OpenMapTiles (OMT) vector tiles */
+const MAPTILER_KEY = 'YOUR_MAPTILER_KEY';           // free key from cloud.maptiler.com, restrict it to your site's domain
+const FIG8 = {lat: -33.804468, lng: 150.867409};    // set to the exact centre of the figure 8 (see ?pick below)
+(function(){
+  if (!window.maplibregl) return;
+  const hasKey = MAPTILER_KEY && MAPTILER_KEY !== 'YOUR_MAPTILER_KEY';
+  const style = hasKey
+    ? `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${MAPTILER_KEY}`
+    : {version: 8, sources: {osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}},
+       layers: [{id: 'osm', type: 'raster', source: 'osm'}]};
+  const map = new maplibregl.Map({container: 'mapbox', style, center: [FIG8.lng, FIG8.lat], zoom: 16.5, pitch: 40, cooperativeGestures: true});
+  map.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
+  const el = document.createElement('div'); el.className = 'pin'; el.innerHTML = '<i></i><b>♥</b>';
+  const popup = new maplibregl.Popup({offset: [0, -18], closeOnClick: false}).setHTML('<b>Where it all started</b><br>The car went sideways. We kept going.');
+  new maplibregl.Marker({element: el}).setLngLat([FIG8.lng, FIG8.lat]).setPopup(popup).addTo(map);
+  map.once('load', () => popup.addTo(map));
+  document.getElementById('fullmap').href = `https://www.openstreetmap.org/?mlat=${FIG8.lat}&mlon=${FIG8.lng}#map=17/${FIG8.lat}/${FIG8.lng}`;
+  /* add ?pick to the page URL, click the middle of the figure 8, and copy the coordinates shown */
+  if (location.search.includes('pick')) map.on('click', e => new maplibregl.Popup().setLngLat(e.lngLat)
+    .setHTML(`<b>${e.lngLat.lat.toFixed(6)}, ${e.lngLat.lng.toFixed(6)}</b>`).addTo(map));
+})();
+</script>
 <script>
 /* ---- edit these ---- */
 const START = new Date('2023-08-15T00:00:00');   // official anniversary date
@@ -266,7 +271,6 @@ addEventListener('keydown', e => { if (['ArrowLeft','a','A'].includes(e.key)){ k
 addEventListener('keyup', e => { if (['ArrowLeft','a','A'].includes(e.key)) keys.l = false; if (['ArrowRight','d','D'].includes(e.key)) keys.r = false; });
 $('#go').onclick = () => { reset(); $('#ov').classList.add('off'); t0 = performance.now(); run = true; };
 reset(); requestAnimationFrame(draw);
-if (matchMedia('(prefers-reduced-motion: reduce)').matches) document.querySelectorAll('.tmap animate, .tmap animateMotion').forEach(n => n.remove());
 </script>
 </body>
 </html>
