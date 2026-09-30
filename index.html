@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css">
 <style>
 :root{--asphalt:#14121c;--road:#1f1b2b;--line:#ffd23f;--paint:#f2f0f7;--heart:#ff4d8d;--smoke:#b8a7ff;--muted:#a9a3bb;
 --head:'Bricolage Grotesque','Arial Black',system-ui,sans-serif;--body:'DM Sans',system-ui,-apple-system,sans-serif}
@@ -83,8 +83,8 @@ canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair;b
 .pin b{position:absolute;inset:0;display:grid;place-items:center;font-size:26px;color:#fff;text-shadow:0 0 12px var(--heart)}
 @keyframes pulse{0%{transform:scale(.6);opacity:.9}100%{transform:scale(3);opacity:0}}
 #mapbox{height:460px;background:var(--road)}
-.maplibregl-popup-content{background:var(--asphalt);color:var(--paint);border:2px solid var(--line);border-radius:14px;font-family:var(--body);padding:12px 16px}
-.maplibregl-popup-anchor-bottom .maplibregl-popup-tip{border-top-color:var(--line)}
+.mapboxgl-popup-content{background:var(--asphalt);color:var(--paint);border:2px solid var(--line);border-radius:14px;font-family:var(--body);padding:12px 16px}
+.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip{border-top-color:var(--line)}
 @media(prefers-reduced-motion:reduce){.pin i{animation:none}}
 .mapcard{position:absolute;left:14px;bottom:34px;z-index:500;padding:.8rem 1.1rem;border-radius:16px;background:rgba(20,18,28,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(242,240,247,.25);text-align:left}
 .mapcard b{display:block;font:800 1.15rem var(--head)}
@@ -146,28 +146,24 @@ footer{padding:3rem 1.4rem calc(3rem + env(safe-area-inset-bottom,0px));text-ali
 <footer>Made by Anthony, for Bianca. &copy; 2026</footer>
 <div id="lb" role="dialog" aria-label="Photo viewer"><div><img alt=""><p></p></div></div>
 
-<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
 <script>
-/* map: OpenStreetMap data, drawn from MapTiler's OpenMapTiles (OMT) vector tiles */
-const MAPTILER_KEY = 'YOUR_MAPTILER_KEY';           // free key from cloud.maptiler.com, restrict it to your site's domain
+/* map: Mapbox GL JS, Standard style at night. The token is a public (pk.) token: restrict it to your site's URLs in your Mapbox account. */
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiYW5waG9uaWUiLCJhIjoiY211b3I2NW50MDE4MzJ5b29tOHB5aWtlZSJ9.KshWdH-d40OcHda7jkpaAw';
 const FIG8 = {lat: -33.804468, lng: 150.867409};    // set to the exact centre of the figure 8 (see ?pick below)
 (function(){
-  if (!window.maplibregl) return;
-  const hasKey = MAPTILER_KEY && MAPTILER_KEY !== 'YOUR_MAPTILER_KEY';
-  const style = hasKey
-    ? `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${MAPTILER_KEY}`
-    : {version: 8, sources: {osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}},
-       layers: [{id: 'osm', type: 'raster', source: 'osm'}]};
-  const map = new maplibregl.Map({container: 'mapbox', style, center: [FIG8.lng, FIG8.lat], zoom: 16.5, pitch: 40, cooperativeGestures: true});
-  map.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
+  if (!window.mapboxgl) return;
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+  const map = new mapboxgl.Map({container: 'mapbox', style: 'mapbox://styles/mapbox/standard', config: {basemap: {lightPreset: 'night'}},
+    center: [FIG8.lng, FIG8.lat], zoom: 16.5, pitch: 50, bearing: -20, cooperativeGestures: true});
+  map.addControl(new mapboxgl.NavigationControl({visualizePitch: true}), 'top-right');
   const el = document.createElement('div'); el.className = 'pin'; el.innerHTML = '<i></i><b>♥</b>';
-  const popup = new maplibregl.Popup({offset: [0, -18], closeOnClick: false}).setHTML('<b>Where it all started</b><br>The car went sideways. We kept going.');
-  new maplibregl.Marker({element: el}).setLngLat([FIG8.lng, FIG8.lat]).setPopup(popup).addTo(map);
+  const popup = new mapboxgl.Popup({offset: [0, -18], closeOnClick: false}).setHTML('<b>Where it all started</b><br>The car went sideways. We kept going.');
+  new mapboxgl.Marker({element: el}).setLngLat([FIG8.lng, FIG8.lat]).setPopup(popup).addTo(map);
   map.once('load', () => popup.addTo(map));
   document.getElementById('fullmap').href = `https://www.openstreetmap.org/?mlat=${FIG8.lat}&mlon=${FIG8.lng}#map=17/${FIG8.lat}/${FIG8.lng}`;
   /* add ?pick to the page URL, click the middle of the figure 8, and copy the coordinates shown */
-  if (location.search.includes('pick')) map.on('click', e => new maplibregl.Popup().setLngLat(e.lngLat)
+  if (location.search.includes('pick')) map.on('click', e => new mapboxgl.Popup().setLngLat(e.lngLat)
     .setHTML(`<b>${e.lngLat.lat.toFixed(6)}, ${e.lngLat.lng.toFixed(6)}</b>`).addTo(map));
 })();
 </script>
