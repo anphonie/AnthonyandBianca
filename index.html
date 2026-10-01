@@ -97,6 +97,12 @@ kbd{display:inline-block;min-width:1.9em;padding:.1em .5em;border-radius:6px;bor
 .mapboxgl-popup-close-button:focus-visible{outline:2px solid var(--line);outline-offset:2px}
 .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip{border-top-color:var(--line)}
 @media(prefers-reduced-motion:reduce){.pin i{animation:none}}
+/* phones: keep the popup as dark and quiet as the night map */
+@media(max-width:600px){
+  .mapboxgl-popup-content{background:rgba(20,18,28,.82);color:#cfcad9;border:1px solid rgba(242,240,247,.22);box-shadow:none}
+  .mapboxgl-popup-close-button{background:rgba(242,240,247,.08);color:#cfcad9}
+  .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip{border-top-color:rgba(20,18,28,.82)}
+}
 .mapcard{position:absolute;left:14px;bottom:34px;z-index:500;padding:.8rem 1.1rem;border-radius:16px;background:rgba(20,18,28,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(242,240,247,.25);text-align:left}
 .mapcard b{display:block;font:800 1.15rem var(--head)}
 .mapcard small{color:var(--muted)}
@@ -118,7 +124,7 @@ addEventListener('load', () => { if (!location.hash) scrollTo({top: 0, left: 0, 
 <header class="hero">
   <div>
     <h1>Anthony &amp; Bianca</h1>
-    <p>Happy anniversary. This is how long we have been together:</p>
+    <p>Time since we started dating:</p>
     <div class="clock" id="clock" aria-live="off"></div>
     <a class="cue" href="#game">Skip to the game</a>
   </div>
@@ -192,8 +198,8 @@ const FIG8 = {lat: -33.804468, lng: 150.867409};    // set to the exact centre o
 </script>
 <script>
 /* ---- edit these ---- */
-const START = new Date('2023-08-15T00:00:00');   // official anniversary date
-const WIN_MSG = "You drifted your way into my heart all over again. Happy anniversary, Bianca. I love you.";
+const START = new Date('2023-08-15T00:00:00');   // the day we started dating
+const WIN_MSG = "You drifted your way into my heart all over again, Bianca. I love you.";
 const PHOTOS = [['selfie5.jpeg','First selfie'],['selfie3.jpeg','Heh'],['selfie2.jpeg','Not so Mirror Lake'],['rabbit.jpg','Rabbit'],['Date1.png','Baby'],['cat.jpeg','Cat'],['date.jpg','Mash potatoes'],['shoelace.jpeg',"Bianca's personal slave"],['pizza.jpeg','Huge pizza']];
 /* -------------------- */
 const $ = s => document.querySelector(s);
