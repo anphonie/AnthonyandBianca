@@ -263,7 +263,7 @@ function update(dt){
   }
   tc.globalCompositeOperation = 'destination-out'; tc.fillStyle = 'rgba(0,0,0,.012)'; tc.fillRect(0,0,W,H); tc.globalCompositeOperation = 'source-over';
   hearts.forEach(h => { if (Math.hypot(h.x-car.x, h.y-car.y) < 26){ score++; burst(h.x, h.y, '#ff4d8d'); place(h); hud(); } });
-  cones.forEach(c => { if (Math.hypot(c.x-car.x, c.y-car.y) < 22){ score = Math.max(0, score-1); shake = .3; car.vx *= -.6; car.vy *= -.6; burst(c.x, c.y, '#ff8a3d'); place(c); hud(); } });
+  cones.forEach(c => { if (Math.hypot(c.x-car.x, c.y-car.y) < 22){ score = Math.max(0, score-1); shake = .3; buzz([60, 40, 90]); car.vx *= -.6; car.vy *= -.6; burst(c.x, c.y, '#ff8a3d'); place(c); hud(); } });
   parts.forEach(p => { p.x += p.vx*dt; p.y += p.vy*dt; p.l -= dt; }); parts = parts.filter(p => p.l > 0);
   shake = Math.max(0, shake - dt);
   $('#tm').textContent = ((performance.now() - t0)/1000).toFixed(1) + 's';
@@ -298,11 +298,14 @@ cv.addEventListener('pointermove', aim); cv.addEventListener('pointerdown', aim)
 addEventListener('keydown', e => { if (['ArrowLeft','a','A'].includes(e.key)){ keys.l = true; tgt = null; } if (['ArrowRight','d','D'].includes(e.key)){ keys.r = true; tgt = null; } if (run && e.key.startsWith('Arrow')) e.preventDefault(); });
 addEventListener('keyup', e => { if (['ArrowLeft','a','A'].includes(e.key)) keys.l = false; if (['ArrowRight','d','D'].includes(e.key)) keys.r = false; });
 
+/* haptics: fired straight from the touch event so there is no delay (Android/Chrome only; iOS Safari has no web vibration API) */
+const buzz = p => { try { if (isTouch && navigator.vibrate) navigator.vibrate(p); } catch (_) {} };
+
 /* on-screen arrow buttons (multi-touch: hold or switch between them) */
 document.querySelectorAll('.pad button').forEach(b => {
   const k = b.dataset.k;
   const set = v => { keys[k] = v; b.classList.toggle('on', v); if (v) tgt = null; };
-  b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); set(true); });
+  b.addEventListener('pointerdown', e => { buzz(15); e.preventDefault(); b.setPointerCapture(e.pointerId); set(true); });
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => b.addEventListener(t, () => set(false)));
   b.addEventListener('contextmenu', e => e.preventDefault());
 });
