@@ -77,6 +77,9 @@ canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair;b
 .tip{margin-top:1rem;color:var(--muted);font-size:.95rem}
 /* device-specific controls */
 kbd{display:inline-block;min-width:1.9em;padding:.1em .5em;border-radius:6px;border:1px solid rgba(242,240,247,.35);border-bottom-width:3px;background:rgba(242,240,247,.1);font:500 .9em var(--body)}
+.modes{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;margin:0 auto 1rem;max-width:820px}
+.modes button{border:2px solid rgba(242,240,247,.25);border-radius:99px;padding:.55rem 1.1rem;background:transparent;color:var(--paint);font:500 .95rem var(--body);cursor:pointer}
+.modes button[aria-pressed=true]{background:var(--line);color:#14121c;border-color:var(--line)}
 .pad{display:none}
 .pad,.pad *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .touch .desk-only{display:none}
@@ -148,8 +151,13 @@ addEventListener('load', () => { if (!location.hash) scrollTo({top: 0, left: 0, 
 </div></section>
 
 <section id="game"><div class="wrap">
-  <h2>Minigame</h2>
-  <p class="lead" style="margin-inline:auto">We met in a car going sideways, so here is the rematch. Drift around the lot and collect 10 hearts. Cones cost you one.</p>
+  <h2>Minigames</h2>
+  <p class="lead" style="margin-inline:auto">We met in a car going sideways, so pick a ride and go again. Collect the hearts, dodge the rest.</p>
+  <div class="modes" role="group" aria-label="Choose a game">
+    <button type="button" data-m="drift" aria-pressed="true">Drift</button>
+    <button type="button" data-m="swerve" aria-pressed="false">Swerve</button>
+    <button type="button" data-m="wheelie" aria-pressed="false">Wheelie</button>
+  </div>
   <div class="cab">
     <canvas id="cv" aria-label="Drift game: steer a car to collect hearts and avoid cones"></canvas>
     <div class="hud"><span id="sc">♥ 0/10</span><span id="tm">0.0s</span></div>
@@ -159,7 +167,7 @@ addEventListener('load', () => { if (!location.hash) scrollTo({top: 0, left: 0, 
     <button type="button" data-k="l" aria-label="Steer left">◀</button>
     <button type="button" data-k="r" aria-label="Steer right">▶</button>
   </div>
-  <p class="tip desk-only">Keyboard: <kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> to steer, or move your mouse and the car chases it.</p>
+  <p class="tip desk-only">Keyboard: <kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> (Wheelie: <kbd>←</kbd> lifts the front wheel, <kbd>→</kbd> drops it). In Drift you can also move your mouse and the car chases it.</p>
   <p class="tip">Best time this visit: <b id="best">none yet</b></p>
 </div></section>
 
@@ -242,12 +250,14 @@ let car, hearts, cones, parts, score, t0, run = false, shake = 0, tgt = null, ke
 const rnd = (a,b) => a + Math.random()*(b-a);
 const spot = () => ({x: rnd(50, W-50), y: rnd(60, H-50), p: Math.random()*6});
 function reset(){
+  if (mode === 'swerve') return swReset();
+  if (mode === 'wheelie') return whReset();
   car = {x: W/2, y: H/2, a: -Math.PI/2, vx: 0, vy: 0}; score = 0; parts = []; tgt = null; tc.clearRect(0,0,W,H);
   hearts = [spot(), spot(), spot()];
   cones = []; while (cones.length < 5){ const c = spot(); if (Math.hypot(c.x-W/2, c.y-H/2) > 110) cones.push(c); }
   hud();
 }
-function hud(){ $('#sc').textContent = `♥ ${score}/${GOAL}`; }
+function hud(){ $('#sc').textContent = mode === 'wheelie' ? `⏱ ${(wh ? wh.t : 0).toFixed(1)}s` : `♥ ${score}/${GOAL}`; }
 function burst(x, y, col){ for (let i = 0; i < 12; i++) parts.push({x, y, vx: rnd(-140,140), vy: rnd(-140,140), l: .7, col}); }
 function place(o, list){ let n; do { n = spot(); } while (Math.hypot(n.x-car.x, n.y-car.y) < 120); Object.assign(o, n); }
 
@@ -280,10 +290,151 @@ function drawAltezza(){
   ctx.fillStyle = '#ffd0d0'; ctx.fillRect(-21, -7, 1.2, 2); ctx.fillRect(-21, 5, 1.2, 2);        // clear Altezza lens
 }
 
+let mode = 'drift', wh = null, sw = null; const bests = {};
+const PM = {drift: {S: 230, grip: 2.1, turn: 3.4}};
+
+/* ---- Swerve: Tesla Model 3 Performance (Highland) through traffic ---- */
+const RW = () => Math.min(W - 60, 300), laneX = i => (W - RW())/2 + RW()*(i + .5)/5;
+function swReset(){ score = 0; tgt = null; sw = {x: laneX(2), lane: 2, last: 0, cd: 0, tilt: 0, cars: [], hs: [], off: 0, sp: 1, tc: 0, th: 1}; hud(); }
+function swUpdate(dt){
+  const rw = RW(), L = (W - rw)/2, py = H - 90;
+  sw.sp = 1.25 + (performance.now() - t0)/40000;
+  /* hop one lane per press (hold to keep hopping), eased so the car glides across like crossing a road */
+  const want = (keys.r ? 1 : 0) - (keys.l ? 1 : 0);
+  if ((sw.cd -= dt) <= 0 || want !== sw.last){
+    if (want && (want !== sw.last || sw.cd <= 0)){ const nl = Math.max(0, Math.min(4, sw.lane + want)); if (nl !== sw.lane){ sw.lane = nl; if (sw.last === want) buzz(10); } sw.cd = .2; }
+  }
+  sw.last = want;
+  const dx = laneX(sw.lane) - sw.x;
+  sw.x += dx*(1 - Math.exp(-14*dt));
+  sw.tilt += (Math.max(-1, Math.min(1, dx/45))*.3 - sw.tilt)*(1 - Math.exp(-18*dt));
+  sw.off = (sw.off + 400*sw.sp*dt) % 60;
+  if ((sw.tc -= dt) <= 0){ sw.tc = rnd(.3, .55)/sw.sp; sw.cars.push({x: laneX(Math.floor(Math.random()*5)), y: -50, dy: rnd(230, 330)*sw.sp, col: ['#4aa3ff','#ffb347','#9be564','#b8a7ff','#ff6b6b'][Math.floor(Math.random()*5)]}); }
+  if ((sw.th -= dt) <= 0){ sw.th = rnd(1, 1.8); sw.hs.push({x: laneX(Math.floor(Math.random()*5)), y: -30, p: Math.random()*6}); }
+  sw.cars.forEach(c => c.y += c.dy*dt); sw.hs.forEach(h => h.y += 400*sw.sp*dt);
+  sw.cars = sw.cars.filter(c => { if (Math.abs(c.x - sw.x) < 23 && Math.abs(c.y - py) < 42){ score = Math.max(0, score - 1); shake = .3; buzz([60, 40, 90]); hud(); return false; } return c.y < H + 60; });
+  sw.hs = sw.hs.filter(h => { if (Math.hypot(h.x - sw.x, h.y - py) < 28){ score++; hud(); return false; } return h.y < H + 40; });
+  $('#tm').textContent = ((performance.now() - t0)/1000).toFixed(1) + 's';
+  if (score >= GOAL) win();
+}
+function swDraw(ts){
+  const rw = RW(), L = (W - rw)/2;
+  ctx.fillStyle = '#14121c'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#2a2438'; ctx.fillRect(L, 0, rw, H);
+  ctx.fillStyle = '#ffd23f'; ctx.fillRect(L - 4, 0, 4, H); ctx.fillRect(L + rw, 0, 4, H);
+  ctx.fillStyle = 'rgba(242,240,247,.4)';
+  for (let i = 1; i < 5; i++) for (let y = -60 + sw.off; y < H; y += 60) ctx.fillRect(L + rw*i/5 - 2, y, 4, 30);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '30px serif'; ctx.fillStyle = '#ff4d8d';
+  sw.hs.forEach(h => ctx.fillText('♥', h.x, h.y + Math.sin(ts/300 + h.p)*3));
+  sw.cars.forEach(c => { ctx.save(); ctx.translate(c.x, c.y); ctx.fillStyle = c.col; ctx.beginPath(); ctx.roundRect(-13, -23, 26, 46, 6); ctx.fill();
+    ctx.fillStyle = '#14121c'; ctx.fillRect(-9, -13, 18, 9); ctx.fillRect(-9, 9, 18, 6); ctx.restore(); });
+  ctx.save(); ctx.translate(sw.x, H - 90); ctx.rotate(sw.tilt); drawTesla(); ctx.restore();
+}
+function drawTesla(){   /* top-down, nose up: red body, glass roof, full-width Highland light bars */
+  ctx.fillStyle = '#0b0a10'; [[-14,-17],[11,-17],[-14,9],[11,9]].forEach(([x,y]) => ctx.fillRect(x, y, 3, 9));
+  ctx.fillStyle = '#f4f5f8'; ctx.beginPath(); ctx.roundRect(-12, -24, 24, 48, 8); ctx.fill(); ctx.fillRect(-15, -8, 3, 3); ctx.fillRect(12, -8, 3, 3);
+  ctx.fillStyle = '#10131c'; ctx.beginPath(); ctx.roundRect(-9, -10, 18, 25, 5); ctx.fill();
+  ctx.fillStyle = '#0b0a10'; ctx.fillRect(-9, 19, 18, 2.5);
+  ctx.fillStyle = '#fff3b0'; ctx.fillRect(-10, -24, 6, 2); ctx.fillRect(4, -24, 6, 2);
+  ctx.fillStyle = '#ff3b3b'; ctx.fillRect(-11, 22, 22, 2);
+}
+
+/* ---- Wheelie: side view. Hold right to lift, left to brake ---- */
+function whReset(){ score = 0; wh = {th: 0, w: 0, t: 0, el: 0, world: 0, spin: 0, down: 0, on: false, sp: 1, why: ''}; hud(); }
+const FALL = 80*Math.PI/180;   /* the bike goes over at 80 degrees */
+function whEnd(why){ wh.why = why; wh.down = why === 'fall' ? .9 : .6; if (why === 'fall'){ shake = .3; buzz([60, 40, 90]); } else buzz(40); }
+function whFinish(){
+  run = false; const t = wh.t, rec = t > 0 && (!bests.wheelie || t > bests.wheelie);
+  if (rec){ bests.wheelie = t; $('#best').textContent = t.toFixed(1) + 's'; }
+  $('#ovh').textContent = `${t.toFixed(1)}s wheelie`;
+  $('#ovp').textContent = (rec ? 'New record! ' : (bests.wheelie ? `Record: ${bests.wheelie.toFixed(1)}s. ` : '')) + (wh.why === 'fall' ? 'You flipped it over.' : 'The front wheel touched down.');
+  $('#go').textContent = 'Go again'; $('#ov').classList.remove('off');
+}
+function whUpdate(dt){
+  if (wh.down > 0){ if (wh.why === 'fall') wh.th += 3*dt; if ((wh.down -= dt) <= 0) whFinish(); return; }
+  const sp = wh.sp = 1 + (wh.el += dt)*.1;   /* always accelerating: faster and twitchier every second */
+  wh.w += ((keys.l ? 6 : 0) - (keys.r ? 6 : 0) + 4.5*Math.sin(wh.th - .85))*sp*dt;
+  wh.w *= 1 - 1.2*dt/sp; wh.th += wh.w*dt;
+  if (wh.th < 0){ wh.th = 0; wh.w = Math.max(0, wh.w); }
+  const v = (260 + wh.th*120)*sp*(keys.l ? 1.2 : 1);   /* throttle pulls harder; the scenery scrolls with speed */
+  wh.world += v*dt; wh.spin += v*dt/24;
+  if (!wh.on && wh.th > .12) wh.on = true;                 /* timer starts when the front wheel lifts */
+  if (wh.on){ wh.t += dt; if (wh.th <= .005) whEnd('down'); else if (wh.th >= FALL) whEnd('fall'); }
+  hud(); $('#tm').textContent = Math.round(sp*100) + ' km/h';
+}
+const hash = n => { const x = Math.sin(n*127.1)*43758.5453; return x - Math.floor(x); };
+function layer(f, gap, fn){   /* parallax: items repeat every gap px and scroll at f x the road speed */
+  const p = wh.world*f, base = Math.floor(p/gap), o = p - base*gap;
+  for (let j = -1; j*gap - o < W + gap; j++) fn(j*gap - o, hash(base + j));
+}
+function ridge(f, y0, a, col){
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, H);
+  for (let x = 0; x <= W; x += 8){ const q = x + wh.world*f; ctx.lineTo(x, y0 - a*(.6 + .4*Math.sin(q/120)) - a*.5*Math.sin(q/47)); }
+  ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+}
+function tree(x, h, gy, k, c1, c2){
+  const sz = (26 + h*28)*k;
+  ctx.fillStyle = '#3b2a33'; ctx.fillRect(x - 3*k, gy - sz*.4, 6*k, sz*.4);
+  if (h > .5){ ctx.fillStyle = c1; for (let i = 0; i < 3; i++){ const w = sz*(.55 - i*.12), y = gy - sz*.28 - i*sz*.3; ctx.beginPath(); ctx.moveTo(x - w, y); ctx.lineTo(x, y - sz*.5); ctx.lineTo(x + w, y); ctx.fill(); } }
+  else { ctx.fillStyle = c2; [[0, .8, .42], [-.28, .55, .3], [.28, .55, .3]].forEach(([dx, dy, rr]) => { ctx.beginPath(); ctx.arc(x + dx*sz, gy - dy*sz, rr*sz, 0, 7); ctx.fill(); }); }
+}
+function whDraw(){
+  const gy = H*.72, px = W*.38;
+  const sk = ctx.createLinearGradient(0, 0, 0, gy); sk.addColorStop(0, '#14121c'); sk.addColorStop(.6, '#3a2c5a'); sk.addColorStop(1, '#d9647a');
+  ctx.fillStyle = sk; ctx.fillRect(0, 0, W, gy);
+  ctx.fillStyle = 'rgba(255,210,63,.25)'; ctx.beginPath(); ctx.arc(W*.72, gy - 90, 46, 0, 7); ctx.fill();
+  ridge(.05, gy - 70, 55, '#2a2040'); ridge(.15, gy - 30, 34, '#241c36');
+  layer(.3, 95, (x, h) => tree(x, h, gy - 8, .65, '#1a3a36', '#17302f'));
+  layer(.6, 150, (x, h) => tree(x, h, gy - 2, 1, '#2a6a52', '#2f7a58'));
+  ctx.fillStyle = '#1f1b2b'; ctx.fillRect(0, gy, W, H - gy); ctx.fillStyle = '#2a2438'; ctx.fillRect(0, gy, W, 5);
+  ctx.fillStyle = '#ffd23f'; for (let x = -(wh.world % 80); x < W; x += 80) ctx.fillRect(x, gy + 40, 40, 4);
+  layer(1, 380, x => { ctx.fillStyle = '#3a4056'; ctx.fillRect(x - 2, gy - 80, 4, 96); ctx.fillRect(x - 2, gy - 80, 18, 4); ctx.fillStyle = '#fff3b0'; ctx.fillRect(x + 12, gy - 76, 8, 4); });
+  const n = Math.min(10, Math.floor((wh.sp - 1.4)*5));   /* speed streaks appear as you go faster */
+  ctx.fillStyle = 'rgba(242,240,247,.18)';
+  for (let k = 0; k < n; k++) ctx.fillRect(((hash(k)*2*W - wh.world*1.7) % W + W) % W, gy - 150 + hash(k + 7)*200, 30 + hash(k + 3)*40*wh.sp, 2);
+  ctx.save(); ctx.translate(px, gy); ctx.rotate(-wh.th); drawSport(); ctx.restore();
+}
+function drawSport(){   /* red superbike, cartoon style, side view, origin = rear tyre contact, nose right */
+  ctx.scale(1.55, 1.55); const r = 16, wb = 62, OL = '#14121c';
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 2; ctx.strokeStyle = OL;
+  const seg = (pts, w, col) => {
+    [[w + 3, OL], [w, col]].forEach(([lw, c]) => { ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.stroke(); });
+    ctx.strokeStyle = OL; ctx.lineWidth = 2;
+  };
+  seg([[0, -r], [26, -24]], 5, '#2a2f40');                                                                                         // swingarm
+  ctx.save(); ctx.translate(20, -16); ctx.rotate(-.2); ctx.fillStyle = '#c9ced9'; ctx.beginPath(); ctx.roundRect(-16, -4.5, 32, 9, 4.5); ctx.fill(); ctx.stroke(); ctx.restore();   // exhaust
+  [0, wb].forEach(x => {                                                                                                          // wheels
+    ctx.save(); ctx.translate(x, -r);
+    ctx.fillStyle = '#1b1b22'; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.rotate(wh.spin); ctx.fillStyle = '#5fd4d4'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, 7); ctx.fill(); ctx.stroke();
+    for (let k = 0; k < 5; k++){ ctx.rotate(Math.PI*2/5); ctx.beginPath(); ctx.moveTo(2.5, 0); ctx.lineTo(9, 0); ctx.stroke(); }
+    ctx.fillStyle = '#c9ced9'; ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, 7); ctx.fill(); ctx.restore();
+  });
+  seg([[wb, -r], [wb - 10, -52]], 4.5, '#f1b73a');                                                                                // gold fork
+  ctx.fillStyle = '#3a4f5c'; ctx.beginPath(); ctx.roundRect(22, -36, 26, 20, 5); ctx.fill(); ctx.stroke();                          // engine
+  ctx.fillStyle = '#5fd4d4'; ctx.beginPath(); ctx.arc(38, -26, 6, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#d9232d'; ctx.beginPath();                                                                                     // red bodywork
+  ctx.moveTo(-16, -55); ctx.lineTo(8, -52); ctx.lineTo(26, -50); ctx.quadraticCurveTo(38, -62, 52, -56); ctx.lineTo(66, -50); ctx.lineTo(74, -42);
+  ctx.lineTo(70, -34); ctx.lineTo(56, -28); ctx.lineTo(44, -16); ctx.lineTo(26, -18); ctx.lineTo(16, -30); ctx.lineTo(-6, -38); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.beginPath(); ctx.moveTo(30, -55); ctx.quadraticCurveTo(40, -62, 52, -58); ctx.stroke(); ctx.strokeStyle = OL;   // gloss
+  ctx.fillStyle = '#14121c'; ctx.beginPath(); ctx.roundRect(-6, -55, 24, 4, 2); ctx.fill();                                        // seat
+  ctx.fillStyle = 'rgba(95,212,212,.65)'; ctx.beginPath(); ctx.moveTo(56, -56); ctx.lineTo(66, -72); ctx.lineTo(72, -60); ctx.closePath(); ctx.fill(); ctx.stroke();   // screen
+  ctx.fillStyle = '#fff3b0'; ctx.beginPath(); ctx.roundRect(66, -46, 8, 6, 2); ctx.fill(); ctx.stroke();                            // headlight
+  ctx.fillStyle = '#ff5a5a'; ctx.fillRect(-18, -56, 3, 4);                                                                          // tail light
+  seg([[6, -56], [34, -44], [30, -24]], 6, '#2a2f40');                                                                              // leg
+  seg([[6, -58], [40, -82]], 10, '#2a2f40');                                                                                        // torso
+  seg([[40, -82], [56, -62]], 5, '#2a2f40');                                                                                        // arm
+  ctx.fillStyle = '#5fd4d4'; ctx.beginPath(); ctx.arc(46, -91, 8.5, 0, 7); ctx.fill(); ctx.stroke();                                // helmet
+  ctx.fillStyle = OL; ctx.beginPath(); ctx.ellipse(51, -90, 4.5, 3.5, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(43, -94, 2.5, 0, 7); ctx.fill();
+}
+
 function update(dt){
+  if (mode === 'swerve') return swUpdate(dt);
+  if (mode === 'wheelie') return whUpdate(dt);
+  const pm = PM[mode];
   if (tgt){ let d = Math.atan2(tgt.y-car.y, tgt.x-car.x) - car.a; d = Math.atan2(Math.sin(d), Math.cos(d)); car.a += Math.max(-1, Math.min(1, d)) * 4.2 * dt; }
-  if (keys.l) car.a -= 3.4*dt; if (keys.r) car.a += 3.4*dt;
-  const g = 1 - Math.exp(-2.1*dt), S = 230;
+  if (keys.l) car.a -= pm.turn*dt; if (keys.r) car.a += pm.turn*dt;
+  const g = 1 - Math.exp(-pm.grip*dt), S = pm.S;
   car.vx += (Math.cos(car.a)*S - car.vx) * g; car.vy += (Math.sin(car.a)*S - car.vy) * g;
   car.x += car.vx*dt; car.y += car.vy*dt;
   walls();
@@ -302,13 +453,17 @@ function update(dt){
 }
 function win(){
   run = false; const t = (performance.now() - t0)/1000;
-  if (best === null || t < best){ best = t; $('#best').textContent = t.toFixed(1) + 's'; }
+  if (!bests[mode] || t < bests[mode]){ bests[mode] = t; $('#best').textContent = t.toFixed(1) + 's'; }
   $('#ovh').textContent = `Finished in ${t.toFixed(1)}s`; $('#ovp').textContent = WIN_MSG; $('#go').textContent = 'Drift again';
   $('#ov').classList.remove('off');
 }
 function draw(ts){
   const dt = Math.min(.05, (ts - last)/1000 || 0); last = ts;
   if (run) update(dt);
+  if (mode === 'swerve' || mode === 'wheelie'){
+    ctx.save(); if (shake > 0) ctx.translate(rnd(-4,4), rnd(-4,4)); (mode === 'swerve' ? swDraw : whDraw)(ts); ctx.restore();
+    shake = Math.max(0, shake - dt); return requestAnimationFrame(draw);
+  }
   ctx.save(); if (shake > 0) ctx.translate(rnd(-4,4), rnd(-4,4));
   const bg = ctx.createRadialGradient(W/2, H/2, 40, W/2, H/2, 520); bg.addColorStop(0, '#2a2438'); bg.addColorStop(1, '#14121c');
   ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
@@ -334,7 +489,7 @@ const buzz = p => { try { if (isTouch && navigator.vibrate) navigator.vibrate(p)
 document.querySelectorAll('.pad button').forEach(b => {
   const k = b.dataset.k;
   const set = v => { keys[k] = v; b.classList.toggle('on', v); if (v) tgt = null; };
-  b.addEventListener('pointerdown', e => { buzz(15); e.preventDefault(); b.setPointerCapture(e.pointerId); set(true); });
+  b.addEventListener('pointerdown', e => { buzz(20); e.preventDefault(); b.setPointerCapture(e.pointerId); set(true); });
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => b.addEventListener(t, () => set(false)));
   /* stop the phone's long-press behaviour (the second, stronger buzz and text-select) */
   ['contextmenu', 'selectstart', 'dragstart'].forEach(t => b.addEventListener(t, e => e.preventDefault()));
@@ -342,10 +497,20 @@ document.querySelectorAll('.pad button').forEach(b => {
 });
 
 $('#go').onclick = () => { reset(); $('#ov').classList.add('off'); t0 = performance.now(); run = true; };
-reset(); requestAnimationFrame(draw);
-$('#ovp').textContent = isTouch
-  ? 'Hold the ◀ ▶ buttons under the game to steer. The car slides, so turn early.'
-  : 'Use the ← → arrow keys (or A / D) to steer. You can also move your mouse and the car chases it. It slides, so turn early.';
+/* game picker */
+const INFO = {
+  drift: ['Ready to drift?', 'Use the ← → arrow keys (or A / D) to steer. You can also move your mouse and the car chases it. It slides, so turn early. Collect 10 hearts, cones cost you one.', 'Hold the ◀ ▶ buttons under the game to steer. The car slides, so turn early. Collect 10 hearts, cones cost you one.'],
+  swerve: ['Ready to swerve?', 'Tap ← → (or A / D) to hop one lane at a time, hold to keep hopping. The lanes are tight and the traffic keeps getting faster. Grab 10 hearts, every hit costs you one.', 'Tap ◀ ▶ to hop one lane at a time, hold to keep hopping. The lanes are tight and the traffic keeps getting faster. Grab 10 hearts, every hit costs you one.'],
+  wheelie: ['Ready to wheelie?', 'Hold ← to accelerate and lift the front wheel, tap → to drop it back down. You never stop accelerating, so it keeps getting faster and twitchier. Your time starts when the front wheel lifts and stops when it touches down or you go past 80°. Beat your record.', 'Hold ◀ to accelerate and lift the front wheel, tap ▶ to drop it back down. You never stop accelerating, so it keeps getting faster and twitchier. Your time starts when the front wheel lifts and stops when it touches down or you go past 80°. Beat your record.']
+};
+function setMode(m){
+  mode = m; run = false; keys = {};
+  document.querySelectorAll('.modes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === m));
+  reset(); $('#ovh').textContent = INFO[m][0]; $('#ovp').textContent = INFO[m][isTouch ? 2 : 1]; $('#go').textContent = 'Start engine';
+  $('#tm').textContent = m === 'wheelie' ? '100 km/h' : '0.0s'; $('#best').textContent = bests[m] ? bests[m].toFixed(1) + 's' : 'none yet'; $('#ov').classList.remove('off');
+}
+document.querySelectorAll('.modes button').forEach(b => b.onclick = () => setMode(b.dataset.m));
+setMode('drift'); requestAnimationFrame(draw);
 </script>
 </body>
 </html>
